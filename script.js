@@ -1,7 +1,7 @@
 // script.js
 
 // === CONFIG ===
-const API_BASE_URL = 'https://football-proxy-f5z0.onrender.com/proxy?url=' + encodeURIComponent('https://api.football-data.org/v4');
+const API_BASE_URL = 'https://football-proxy-f5z0.onrender.com/proxy';
 const API_TOKEN = 'fd5cb7c3e0364eed9cfcaaeea699e9c3';
 
 // === STATE ===
@@ -21,9 +21,10 @@ async function loadLeagues() {
   try {
     leagueSelect.innerHTML = '<option>Lade Ligen...</option>';
 
-    const res = await fetch(`${API_BASE_URL}/competitions`, {
-      headers: { 'X-Auth-Token': API_TOKEN }
-    });
+    const res = await fetch(`${API_BASE_URL}?url=${encodeURIComponent('https://api.football-data.org/v4/competitions')}`, {
+  headers: { 'X-Auth-Token': API_TOKEN }
+});
+
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
 
@@ -53,9 +54,10 @@ leagueSelect.addEventListener('change', async e => {
   warningDiv.textContent = 'Lade Teams...';
 
   try {
-    const res = await fetch(`${API_BASE_URL}/competitions/${leagueId}/teams`, {
-      headers: { 'X-Auth-Token': API_TOKEN }
-    });
+    const res = await fetch(`${API_BASE_URL}?url=${encodeURIComponent(`https://api.football-data.org/v4/competitions/${leagueId}/teams`)}`, {
+  headers: { 'X-Auth-Token': API_TOKEN }
+});
+
     const data = await res.json();
     teams = data.teams || [];
 
