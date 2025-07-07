@@ -1,7 +1,7 @@
 // script.js
 
 // === CONFIG ===
-const API_BASE_URL = 'https://football-proxy-f5z0.onrender.com/proxy?url=https://api.football-data.org/v4';
+const API_BASE_URL = 'https://football-proxy-f5z0.onrender.com/proxy?url=' + encodeURIComponent('https://api.football-data.org/v4');
 const API_TOKEN = 'fd5cb7c3e0364eed9cfcaaeea699e9c3';
 
 // === STATE ===
