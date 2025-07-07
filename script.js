@@ -27,9 +27,8 @@ async function loadLeagues() {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
 
-    leagues = data.competitions.filter(c =>
-      ['PL', 'BL1', 'SA', 'PD', 'FL1', 'CL', 'EC'].includes(c.code)
-    );
+    leagues = data.competitions;
+
 
     renderLeagueOptions();
   } catch (err) {
