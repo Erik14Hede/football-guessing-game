@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Football Guessing Game</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="settings-screen">
+    <h1>Spiel-Einstellungen</h1>
+    <label>Spieleranzahl: <input type="number" id="num-players" value="2" min="1" max="10" /></label><br />
+    <label>Wähle Liga: <select id="select-league"></select></label><br />
+    <label><input type="checkbox" id="filter-goalkeeper" /> Torwart</label>
+    <label><input type="checkbox" id="filter-defender" /> Abwehr</label>
+    <label><input type="checkbox" id="filter-midfielder" /> Mittelfeld</label>
+    <label><input type="checkbox" id="filter-forward" /> Sturm</label><br />
+    <label>Zeitlimit pro Runde (Sekunden): <input type="number" id="time-limit" value="30" /></label><br />
+    <label><input type="checkbox" id="exclude-qxy" /> Q, X, Y ausschließen</label>
+    <label><input type="checkbox" id="full-name" /> Vollständiger Name nötig</label><br />
+    <button id="start-game-btn">Spiel starten</button>
+    <div id="warning-message" style="color: red; display: none;"></div>
+  </div>
+
+  <div id="game-screen" style="display: none">
+    <h2>Aktueller Spieler: <span id="current-player-name"></span></h2>
+    <h3>Buchstabe: <span id="current-letter"></span></h3>
+    <div>Zeit: <span id="timer"></span></div>
+    <input type="text" id="player-guess-input" placeholder="Spielername eingeben" />
+    <button id="submit-guess-btn">Bestätigen</button>
+    <button id="pass-turn-btn">Passen</button>
+    <h3>Bereits geratene Spieler:</h3>
+    <ul id="guessed-players-list"></ul>
+    <div id="alphabet-display"></div>
+  </div>
+
+  <div id="end-screen" style="display: none">
+    <h2 id="winner-message"></h2>
+    <button id="restart-game-btn">Neustarten</button>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
