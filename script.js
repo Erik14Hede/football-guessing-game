@@ -71,4 +71,19 @@ leagueSelect.addEventListener('change', async e => {
   } catch (err) {
     warningDiv.textContent = 'Fehler beim Laden der Teams: ' + err.message;
   }
+  document.getElementById('start-game-btn').addEventListener('click', startGame);
+
+function startGame() {
+  // Hide settings, show game screen
+  document.getElementById('settings-screen').style.display = "none";
+  document.getElementById('game-screen').style.display = "block";
+  document.getElementById('end-screen').style.display = "none";
+
+  // Setze hier alle nötigen Variablen für den Spielstart
+  document.getElementById('current-player-name').textContent = "Spieler 1";
+  document.getElementById('current-letter').textContent = "A";
+  document.getElementById('timer').textContent = "30";
+  // usw. ... Du kannst die echte Logik nach Bedarf einfügen!
+}
+
 });
