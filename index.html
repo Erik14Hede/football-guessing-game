@@ -2,43 +2,80 @@
 <html lang="de">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Football Guessing Game</title>
-  <link rel="stylesheet" href="./style.css" />
+  <link rel="stylesheet" href="./style.css"/>
 </head>
 <body>
-  <div id="settings-screen">
-    <h1>Spiel-Einstellungen</h1>
-    <label>Spieleranzahl: <input type="number" id="num-players" value="2" min="1" max="10" /></label><br />
-    <label>Wähle Liga: <select id="select-league"></select></label><br />
-    <label><input type="checkbox" id="filter-goalkeeper" /> Torwart</label>
-    <label><input type="checkbox" id="filter-defender" /> Abwehr</label>
-    <label><input type="checkbox" id="filter-midfielder" /> Mittelfeld</label>
-    <label><input type="checkbox" id="filter-forward" /> Sturm</label><br />
-    <label>Zeitlimit pro Runde (Sekunden): <input type="number" id="time-limit" value="30" /></label><br />
-    <label><input type="checkbox" id="exclude-qxy" /> Q, X, Y ausschließen</label>
-    <label><input type="checkbox" id="full-name" /> Vollständiger Name nötig</label><br />
-    <button id="start-game-btn">Spiel starten</button>
-    <div id="warning-message" style="color: red; display: block;"></div>
+  <!-- MODAL -->
+  <div id="modal" class="modal" style="display:none;">
+    <div class="modal-content">
+      <span id="modal-message"></span>
+      <button id="modal-close">OK</button>
+    </div>
+  </div>
+  <!-- EINSTELLUNGEN -->
+  <div id="settings-screen" class="screen active">
+    <h1>⚽ Alphabet Fußballspiel</h1>
+    <div class="form-group">
+      <label>Spieleranzahl:</label>
+      <input type="number" id="num-players" value="2" min="2" max="10"/>
+    </div>
+    <div class="form-group">
+      <label>Wähle Liga:</label>
+      <select id="select-league"></select>
+    </div>
+    <div class="form-group">
+      <label>Buchstaben-Modus:</label>
+      <select id="mode">
+        <option value="same">Alle für denselben Buchstaben</option>
+        <option value="seq">Jeder bekommt einen neuen Buchstaben</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <div class="form-group small">
+        <label>Zeitlimit (Sek.):</label>
+        <input type="number" id="time-limit" value="30" min="5" max="300"/>
+      </div>
+      <div class="form-group small">
+        <label>Fehlertoleranz:</label>
+        <input type="number" id="errormargin" value="1" min="0" max="5"/>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>
+        <input type="checkbox" id="exclude-qxy"/> Q, X, Y ausschließen
+      </label>
+    </div>
+    <button id="start-game-btn" class="primary">Spiel starten</button>
+    <div id="warning-message" class="warning"></div>
   </div>
 
-  <div id="game-screen" style="display: none">
-    <h2>Aktueller Spieler: <span id="current-player-name"></span></h2>
-    <h3>Buchstabe: <span id="current-letter"></span></h3>
-    <div>Zeit: <span id="timer"></span></div>
-    <input type="text" id="player-guess-input" placeholder="Spielername eingeben" />
-    <button id="submit-guess-btn">Bestätigen</button>
-    <button id="pass-turn-btn">Passen</button>
-    <h3>Bereits geratene Spieler:</h3>
-    <ul id="guessed-players-list"></ul>
-    <div id="alphabet-display"></div>
+  <!-- SPIEL -->
+  <div id="game-screen" class="screen">
+    <div class="scoreboard" id="scoreboard"></div>
+    <div class="alphabet-row" id="alphabet-display"></div>
+    <div class="info-block">
+      <div>Buchstabe: <span id="current-letter"></span></div>
+      <div>Aktueller Spieler: <span id="current-player-name"></span></div>
+      <div>Zeit: <span id="timer"></span>s</div>
+    </div>
+    <input type="text" id="player-guess-input" placeholder="Spielername eingeben" autocomplete="off"/>
+    <div class="action-row">
+      <button id="submit-guess-btn" class="primary">Bestätigen</button>
+      <button id="pass-turn-btn" class="secondary">Passen</button>
+    </div>
+    <div>
+      <h3>Bisher geratene Spieler:</h3>
+      <ul id="guessed-players-list"></ul>
+    </div>
   </div>
 
-  <div id="end-screen" style="display: none">
+  <!-- ENDE -->
+  <div id="end-screen" class="screen">
     <h2 id="winner-message"></h2>
-    <button id="restart-game-btn">Neustarten</button>
+    <button id="restart-game-btn" class="primary">Neustarten</button>
   </div>
-
   <script src="./script.js"></script>
 </body>
 </html>
