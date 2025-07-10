@@ -1,298 +1,17 @@
-// ===== Alphabet Fußball-Quiz mit TheSportsDB =====
-const API = "https://www.thesportsdb.com/api/v1/json/1/";
-
-const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
-let allPlayers = [];
-let usedPlayers = [];
-let guessedLetters = [];
-let availableLetters = [];
-let scores = [];
-let currentPlayer = 0;
-let currentLetterIndex = 0;
-let numPlayers = 2;
-let posFilters = [];
-let requireFullName = false;
-let errorMargin = 1;
-let modeSameLetter = true;
-let gameActive = false;
-let playerNames = [];
-let positionsMap = {
-  Goalkeeper: ['Goalkeeper', 'Keeper', 'GK'],
-  Defender: ['Defender', 'CB', 'LB', 'RB', 'DF'],
-  Midfielder: ['Midfielder', 'CM', 'LM', 'RM', 'CDM', 'CAM', 'MF'],
-  Forward: ['Forward', 'Attacker', 'ST', 'CF', 'LW', 'RW', 'FW']
-};
-
-const $ = id => document.getElementById(id);
-
-const screens = {
-  settings: $("settings-screen"),
-  game: $("game-screen"),
-  end: $("end-screen")
-};
-const modal = $("modal");
-
-window.onload = () => {
-  fetchLeagues();
-  $("start-btn").onclick = startGame;
-  $("submit-btn").onclick = checkGuess;
-  $("pass-btn").onclick = passTurn;
-  $("restart-btn").onclick = restartGame;
-};
-
-function switchScreen(screen) {
-  Object.values(screens).forEach(d => d.style.display = "none");
-  screens[screen].style.display = "block";
-  closeModal();
+// --- Utilities ---
+function showModal(msg) {
+  document.getElementById("modal-content").innerHTML = msg;
+  document.getElementById("modal").style.display = "flex";
 }
-
-// === SETTINGS ===
-async function fetchLeagues() {
-  $("league-select").innerHTML = '<option>Lade Ligen...</option>';
-  const res = await fetch(API + "all_leagues.php");
-  const data = await res.json();
-  // Nur populäre Fußballligen (nur soccer, nicht eSports usw.)
-  const filtered = data.leagues.filter(l => l.strSport === "Soccer" && l.idLeague && l.strLeague);
-  filtered.sort((a, b) => a.strLeague.localeCompare(b.strLeague));
-  $("league-select").innerHTML = filtered.map(l =>
-    `<option value="${l.idLeague}">${l.strLeague}</option>`
-  ).join("");
+function hideModal() {
+  document.getElementById("modal").style.display = "none";
 }
-
-function showModal(html, time=0) {
-  modal.innerHTML = `<div class="box">${html}</div>`;
-  modal.style.display = "flex";
-  if (time) setTimeout(closeModal, time);
-}
-function closeModal() {
-  modal.style.display = "none";
-}
-
-function getCheckedPositions() {
-  return Array.from(document.querySelectorAll(".pos-filter:checked")).map(cb => cb.value);
-}
-
-$("mode-same-letter").onchange = e => {
-  modeSameLetter = e.target.checked;
-};
-
-$("full-name-required").onchange = e => {
-  requireFullName = e.target.checked;
-};
-
-$("error-margin").oninput = e => {
-  errorMargin = Number(e.target.value);
-};
-
-document.querySelectorAll(".pos-filter").forEach(cb => {
-  cb.onchange = () => posFilters = getCheckedPositions();
-});
-
-function setupPlayers() {
-  numPlayers = Math.max(2, Math.min(10, Number($("num-players").value)));
-  playerNames = [];
-  for(let i=1;i<=numPlayers;i++) playerNames.push("Spieler " + i);
-  scores = Array(numPlayers).fill(0);
-}
-
-// === SPIELSTART ===
-async function startGame() {
-  setupPlayers();
-  $("settings-warning").textContent = "";
-
-  const leagueId = $("league-select").value;
-  if (!leagueId) {
-    $("settings-warning").textContent = "Bitte wähle eine Liga.";
-    return;
-  }
-
-  posFilters = getCheckedPositions();
-  requireFullName = $("full-name-required").checked;
-  modeSameLetter = $("mode-same-letter").checked;
-  errorMargin = Number($("error-margin").value);
-
-  showModal("Lade Spieler, bitte warten...");
-  allPlayers = [];
-  usedPlayers = [];
-  guessedLetters = [];
-  availableLetters = [];
-  currentPlayer = 0;
-  currentLetterIndex = 0;
-  gameActive = false;
-
-  // Lade alle Teams der Liga
-  const teams = await fetchTeams(leagueId);
-  if (!teams.length) {
-    closeModal();
-    $("settings-warning").textContent = "Keine Teams in dieser Liga gefunden!";
-    return;
-  }
-
-  // Lade alle Spieler für alle Teams
-  for (let team of teams) {
-    const teamPlayers = await fetchPlayers(team.idTeam);
-    allPlayers.push(...teamPlayers.map(p => ({...p, strTeam: team.strTeam})));
-  }
-  // Entferne Spieler ohne Namen oder Position
-  allPlayers = allPlayers.filter(p => p.strPlayer && p.strPosition);
-
-  // Positionsfilter anwenden
-  if (posFilters.length) {
-    allPlayers = allPlayers.filter(p =>
-      posFilters.some(f => positionsMap[f]?.includes(p.strPosition) || p.strPosition.includes(f))
-    );
-  }
-
-  if (!allPlayers.length) {
-    closeModal();
-    $("settings-warning").textContent = "Keine passenden Spieler in dieser Liga gefunden!";
-    return;
-  }
-
-  // Verfügbare Buchstaben bestimmen
-  availableLetters = alphabet.filter(letter =>
-    allPlayers.some(p => getNamePart(p).toUpperCase().startsWith(letter))
-  );
-
-  if (!availableLetters.length) {
-    closeModal();
-    $("settings-warning").textContent = "Kein Spieler für einen Buchstaben gefunden.";
-    return;
-  }
-
-  closeModal();
-  switchScreen("game");
-  gameActive = true;
-  currentPlayer = 0;
-  currentLetterIndex = 0;
-  guessedLetters = [];
-  updateUI();
-}
-
-async function fetchTeams(leagueId) {
-  const res = await fetch(API + `lookup_all_teams.php?id=${leagueId}`);
-  const data = await res.json();
-  return (data.teams || []);
-}
-async function fetchPlayers(teamId) {
-  const res = await fetch(API + `lookup_all_players.php?id=${teamId}`);
-  const data = await res.json();
-  return (data.player || []);
-}
-
-function getNamePart(p) {
-  if (requireFullName) return (p.strPlayer || "");
-  // Nur Nachname
-  const parts = (p.strPlayer || "").split(" ");
-  return parts.length ? parts[parts.length - 1] : p.strPlayer;
-}
-
-// === SPIEL-UI ===
-function updateUI() {
-  if (!gameActive) return;
-  $("player-turn").textContent = playerNames[currentPlayer];
-  $("current-letter").textContent = availableLetters[currentLetterIndex];
-  $("guess-input").value = "";
-  $("last-guess").innerHTML = "";
-  renderScoreboard();
-  renderAlphabet();
-}
-function renderScoreboard() {
-  $("scoreboard").innerHTML = scores.map((s, i) =>
-    `${playerNames[i]}: <b>${s}</b>`
-  ).join(" &nbsp; ");
-}
-function renderAlphabet() {
-  $("alphabet-row").innerHTML = availableLetters.map((l, i) => {
-    let cls = "";
-    if (guessedLetters.includes(l)) cls = "done";
-    else if (i === currentLetterIndex) cls = "current";
-    return `<span class="${cls}">${l}</span>`;
-  }).join("");
-}
-
-// === RATEN ===
-function checkGuess() {
-  if (!gameActive) return;
-  const guess = $("guess-input").value.trim();
-  if (!guess) {
-    showModal("Bitte gib einen Namen ein.", 1200);
-    return;
-  }
-  const letter = availableLetters[currentLetterIndex];
-  // Finde Spieler, die noch nicht geraten wurden und mit Buchstaben starten
-  let candidates = allPlayers.filter(p =>
-    getNamePart(p).toUpperCase().startsWith(letter)
-      && !usedPlayers.includes(p.idPlayer)
-  );
-  let match = null;
-  for (let p of candidates) {
-    if (levenshtein(getNamePart(p).toLowerCase(), guess.toLowerCase()) <= errorMargin) {
-      match = p;
-      break;
-    }
-  }
-  if (match) {
-    usedPlayers.push(match.idPlayer);
-    guessedLetters.push(letter);
-    scores[currentPlayer]++;
-    showModal(`✅ Richtig: ${match.strPlayer} <br><small>(${match.strTeam || ''}, ${match.strPosition})</small>`, 1400);
-    setTimeout(nextTurn, 1500);
-  } else {
-    showModal("❌ Falsch. Versuche es nochmal!", 1200);
-    $("last-guess").textContent = `Kein gültiger Spieler gefunden für "${guess}" (${letter})`;
-  }
-}
-
-function passTurn() {
-  showModal("Passen...", 900);
-  setTimeout(nextTurn, 900);
-}
-
-function nextTurn() {
-  // Nächster Spieler/Buchstabe je nach Modus
-  if (modeSameLetter) {
-    currentPlayer = (currentPlayer + 1) % numPlayers;
-    if (currentPlayer === 0) {
-      currentLetterIndex++;
-    }
-  } else {
-    currentLetterIndex++;
-    currentPlayer = (currentPlayer + 1) % numPlayers;
-  }
-  if (currentLetterIndex >= availableLetters.length) {
-    endGame();
-    return;
-  }
-  updateUI();
-}
-
-function endGame() {
-  gameActive = false;
-  switchScreen("end");
-  let maxScore = Math.max(...scores);
-  let winners = scores.map((s, i) => s === maxScore ? playerNames[i] : null).filter(Boolean);
-  $("winner").innerHTML = `Gewonnen: <b>${winners.join(' & ')}</b> mit ${maxScore} Punkten!<br><br>${scores.map((s, i) => `${playerNames[i]}: ${s}`).join("<br>")}`;
-}
-
-function restartGame() {
-  closeModal();
-  switchScreen("settings");
-  fetchLeagues();
-}
-
-// === TOOLS ===
 function levenshtein(a, b) {
-  const an = a.length, bn = b.length;
+  const an = a.length; const bn = b.length;
   if (an === 0) return bn;
   if (bn === 0) return an;
-  let matrix = [];
-  for (let i = 0; i <= bn; i++) {
-    matrix[i] = [i];
-  }
-  for (let j = 0; j <= an; j++) {
-    matrix[0][j] = j;
-  }
+  const matrix = Array.from({ length: bn + 1 }, (_, i) => [i]);
+  for (let j = 0; j <= an; j++) matrix[0][j] = j;
   for (let i = 1; i <= bn; i++) {
     for (let j = 1; j <= an; j++) {
       matrix[i][j] = b.charAt(i - 1) === a.charAt(j - 1)
@@ -302,3 +21,265 @@ function levenshtein(a, b) {
   }
   return matrix[bn][an];
 }
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+
+// --- Game State ---
+let allPlayers = [];
+let gamePlayers = [];
+let availablePlayers = [];
+let guessedNames = [];
+let guessedPlayersForLetter = {};
+let settings = {};
+let score = [];
+let curLetterIdx = 0;
+let curPlayerIdx = 0;
+let timer = null;
+let timerTime = 0;
+let isGameActive = false;
+
+// --- Setup ---
+const setupScreen = document.getElementById("setup-screen");
+const gameScreen = document.getElementById("game-screen");
+const startBtn = document.getElementById("start-btn");
+const restartBtn = document.getElementById("restart-btn");
+const sameLetterCheck = document.getElementById("same-letter");
+const leagueSelect = document.getElementById("select-league");
+const errorMarginInput = document.getElementById("error-margin");
+const scoreboardDiv = document.getElementById("scoreboard");
+const setupWarning = document.getElementById("setup-warning");
+const setupLoading = document.getElementById("setup-loading");
+const posChecks = [...document.querySelectorAll('.pos')];
+
+startBtn.onclick = async () => {
+  settings = {
+    numPlayers: Math.max(1, Math.min(10, parseInt(document.getElementById("num-players").value) || 2)),
+    league: leagueSelect.value,
+    positions: posChecks.filter(p => p.checked).map(p => p.value),
+    fullName: document.getElementById("full-name").checked,
+    errorMargin: Math.max(0, Math.min(3, parseInt(errorMarginInput.value))),
+    sameLetter: sameLetterCheck.checked
+  };
+  setupWarning.textContent = "";
+  setupLoading.textContent = "Lade Spieler...";
+  startBtn.disabled = true;
+
+  // --- Spieler laden ---
+  try {
+    allPlayers = await fetchAllPlayers(settings.league, settings.positions);
+    if (!allPlayers.length) throw new Error("Keine Spieler gefunden!");
+
+    // Nachname extrahieren, fallback ist voller Name
+    allPlayers.forEach(p => {
+      const parts = (p.name||"").split(" ");
+      p.lastname = parts.length > 1 ? parts[parts.length-1] : p.name;
+    });
+
+    // Alphabet filtern, wo es keine Spieler gibt
+    const usableAlphabet = alphabet.filter(l =>
+      allPlayers.some(p => (settings.fullName ? p.name : p.lastname).toUpperCase().startsWith(l))
+    );
+    if (usableAlphabet.length < 8) {
+      setupWarning.textContent = "⚠️ Zu wenig unterschiedliche Buchstaben für diese Liga/Filter!";
+      setupLoading.textContent = "";
+      startBtn.disabled = false;
+      return;
+    }
+
+    gamePlayers = shuffle([...Array(settings.numPlayers).keys()].map(i => "Spieler " + (i+1)));
+    availablePlayers = allPlayers;
+    guessedNames = [];
+    guessedPlayersForLetter = {};
+    score = Array(settings.numPlayers).fill(0);
+    curLetterIdx = 0;
+    curPlayerIdx = 0;
+    isGameActive = true;
+
+    setupScreen.style.display = "none";
+    gameScreen.style.display = "";
+    updateGameUI();
+    startTurn();
+  } catch (err) {
+    setupWarning.textContent = "Fehler: " + err.message;
+  }
+  setupLoading.textContent = "";
+  startBtn.disabled = false;
+};
+
+// --- Spieler holen ---
+async function fetchAllPlayers(league, positions) {
+  // 1. Alle Teams der Liga laden
+  const url = `https://www.thesportsdb.com/api/v1/json/123/search_all_teams.php?l=${encodeURIComponent(league)}`;
+  const teamsRes = await fetch(url);
+  const teamsData = await teamsRes.json();
+  const teams = teamsData.teams || [];
+  let all = [];
+  for (const team of teams) {
+    // 2. Für jedes Team alle Spieler laden
+    const squadRes = await fetch(`https://www.thesportsdb.com/api/v1/json/123/lookup_all_players.php?id=${team.idTeam}`);
+    const squadData = await squadRes.json();
+    const players = (squadData.player || []).filter(p =>
+      positions.length ? positions.includes(mapPosition(p.strPosition)) : true
+    );
+    all = all.concat(players.map(p => ({
+      name: p.strPlayer,
+      position: mapPosition(p.strPosition),
+      team: team.strTeam
+    })));
+    await new Promise(r => setTimeout(r, 130)); // nicht zu viele Anfragen/s
+  }
+  // Nur Spieler mit Name
+  return all.filter(p => p.name);
+}
+
+function mapPosition(pos) {
+  // Mappen auf Hauptpositionen
+  if (!pos) return "";
+  pos = pos.toLowerCase();
+  if (pos.includes("keeper") || pos.startsWith("gk")) return "Goalkeeper";
+  if (pos.includes("def") || pos.includes("back")) return "Defender";
+  if (pos.includes("mid")) return "Midfielder";
+  if (pos.includes("forw") || pos.includes("strik") || pos.includes("wing")) return "Forward";
+  return "";
+}
+
+// --- Game Logic ---
+function updateGameUI() {
+  // Alphabet anzeigen
+  const used = Object.keys(guessedPlayersForLetter);
+  const curLetter = getCurrentLetter();
+  document.getElementById("alphabet-bar").innerHTML = alphabet.map(l =>
+    `<span class="${used.includes(l) ? "done" : ""}${curLetter === l ? " active" : ""}">${l}</span>`
+  ).join("");
+  // Status
+  document.getElementById("status-current-letter").textContent =
+    "Buchstabe: " + curLetter;
+  document.getElementById("status-current-player").textContent =
+    " | " + gamePlayers[curPlayerIdx];
+  document.getElementById("timer").textContent = "";
+  // Guessed list
+  document.getElementById("guessed-list").innerHTML =
+    (guessedPlayersForLetter[curLetter] || []).map(
+      (entry, i) =>
+        `<div>${entry.playerName} (${entry.byPlayer})</div>`
+    ).join("");
+  // Scoreboard
+  let html = `<table>`;
+  for (let i = 0; i < gamePlayers.length; i++) {
+    html += `<tr><td>${gamePlayers[i]}</td><td style="text-align:right">${score[i]}</td></tr>`;
+  }
+  html += `</table>`;
+  scoreboardDiv.innerHTML = html;
+  // Clear input
+  document.getElementById("player-input").value = "";
+}
+
+function getCurrentLetter() {
+  // Buchstabe für diese Runde
+  if (settings.sameLetter) return alphabet[curLetterIdx];
+  return alphabet[(curLetterIdx + curPlayerIdx) % alphabet.length];
+}
+
+function nextTurn() {
+  // Wenn alle Buchstaben benutzt => Ende
+  if (Object.keys(guessedPlayersForLetter).length >= alphabet.length) {
+    endGame();
+    return;
+  }
+  if (settings.sameLetter) {
+    curPlayerIdx = (curPlayerIdx + 1) % settings.numPlayers;
+    if (curPlayerIdx === 0) curLetterIdx++;
+    // Skip Buchstaben ohne Spieler
+    while (
+      curLetterIdx < alphabet.length &&
+      !availablePlayers.some(p => (settings.fullName ? p.name : p.lastname).toUpperCase().startsWith(alphabet[curLetterIdx]))
+    ) curLetterIdx++;
+    if (curLetterIdx >= alphabet.length) {
+      endGame();
+      return;
+    }
+  } else {
+    curLetterIdx++;
+    if (curLetterIdx >= alphabet.length) {
+      endGame();
+      return;
+    }
+  }
+  updateGameUI();
+  startTurn();
+}
+
+function startTurn() {
+  updateGameUI();
+}
+
+document.getElementById("guess-btn").onclick = () => tryGuess();
+document.getElementById("player-input").addEventListener("keydown", e => {
+  if (e.key === "Enter") tryGuess();
+});
+document.getElementById("pass-btn").onclick = () => {
+  showModal("Passen. Kein Punkt.");
+  guessedPlayersForLetter[getCurrentLetter()] = guessedPlayersForLetter[getCurrentLetter()] || [];
+  guessedPlayersForLetter[getCurrentLetter()].push({
+    playerName: "(gepasst)", byPlayer: gamePlayers[curPlayerIdx]
+  });
+  nextTurn();
+};
+restartBtn.onclick = () => { location.reload(); };
+
+function tryGuess() {
+  if (!isGameActive) return;
+  const input = document.getElementById("player-input").value.trim();
+  if (!input) return showModal("Bitte gib einen Spielernamen ein!");
+
+  const curLetter = getCurrentLetter();
+  const candidates = availablePlayers.filter(p =>
+    (settings.fullName ? p.name : p.lastname).toUpperCase().startsWith(curLetter)
+  );
+  if (!candidates.length) {
+    showModal("Für diesen Buchstaben gibt es keinen Spieler!");
+    return nextTurn();
+  }
+  // Prüfen ob schon geraten (unabhängig von Groß/Klein)
+  if ((guessedPlayersForLetter[curLetter] || []).some(g =>
+    g.playerName.toLowerCase() === input.toLowerCase()
+  )) {
+    return showModal("Dieser Spieler wurde schon geraten!");
+  }
+
+  // Fehlertoleranz prüfen
+  let found = null, bestDist = 99;
+  for (const p of candidates) {
+    const testValue = settings.fullName ? p.name : p.lastname;
+    const dist = levenshtein(testValue.toLowerCase(), input.toLowerCase());
+    if (dist <= settings.errorMargin && dist < bestDist) {
+      found = p;
+      bestDist = dist;
+    }
+  }
+  if (found) {
+    showModal(`✅ Richtig! ${found.name} (${found.team}, ${found.position})`);
+    score[curPlayerIdx]++;
+    guessedPlayersForLetter[curLetter] = guessedPlayersForLetter[curLetter] || [];
+    guessedPlayersForLetter[curLetter].push({ playerName: found.name, byPlayer: gamePlayers[curPlayerIdx] });
+    nextTurn();
+  } else {
+    showModal("❌ Kein passender Spieler gefunden!");
+  }
+}
+
+function endGame() {
+  isGameActive = false;
+  updateGameUI();
+  showModal("🏁 Spiel beendet!<br><br>" + scoreboardDiv.innerHTML);
+  document.getElementById("restart-btn").style.display = "";
+}
+
+// Modal Handling global (für html-button)
+window.hideModal = hideModal;
