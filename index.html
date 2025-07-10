@@ -1,75 +1,70 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Alphabet Fußball-Quiz</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Alphabet Fußball-Ratespiel</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <div id="modal" class="modal"></div>
+  <div class="container">
 
-  <main>
-    <!-- Einstellungen -->
-    <div id="settings-screen">
-      <h1>Alphabet Fußball-Quiz</h1>
-      <label>
-        Spieleranzahl:
-        <input type="number" id="num-players" min="2" max="10" value="2" />
+    <div id="modal" class="modal" style="display:none;">
+      <div id="modal-content"></div>
+      <button onclick="hideModal()">OK</button>
+    </div>
+
+    <section id="setup-screen">
+      <h1>⚽ Fußballer Alphabet-Quiz</h1>
+      <label>Spieleranzahl:
+        <input type="number" id="num-players" value="2" min="1" max="10"/>
       </label>
-      <br>
-      <label>
-        Liga:
-        <select id="league-select"></select>
+      <label>Liga:
+        <select id="select-league">
+          <option value="English Premier League">Premier League</option>
+          <option value="German Bundesliga">Bundesliga</option>
+          <option value="Italian Serie A">Serie A</option>
+          <option value="Spanish La Liga">La Liga</option>
+          <option value="French Ligue 1">Ligue 1</option>
+        </select>
       </label>
-      <br>
-      <div id="positions">
-        <span>Position(en):</span>
-        <label><input type="checkbox" class="pos-filter" value="Goalkeeper"> TW</label>
-        <label><input type="checkbox" class="pos-filter" value="Defender"> ABW</label>
-        <label><input type="checkbox" class="pos-filter" value="Midfielder"> MF</label>
-        <label><input type="checkbox" class="pos-filter" value="Forward"> ST</label>
+      <label>Position(en):</label>
+      <div class="pos-checkboxes">
+        <label><input type="checkbox" class="pos" value="Goalkeeper" checked/>Torwart</label>
+        <label><input type="checkbox" class="pos" value="Defender" checked/>Abwehr</label>
+        <label><input type="checkbox" class="pos" value="Midfielder" checked/>Mittelfeld</label>
+        <label><input type="checkbox" class="pos" value="Forward" checked/>Sturm</label>
       </div>
-      <br>
       <label>
-        Fehlertoleranz (0=streng, 2=locker):
-        <input type="number" id="error-margin" min="0" max="3" value="1">
+        <input type="checkbox" id="full-name" /> Kompletter Name (sonst nur Nachname)
       </label>
-      <br>
       <label>
-        <input type="checkbox" id="full-name-required" /> Vor- UND Nachname raten
+        Fehler-Toleranz (0-3): <input type="number" id="error-margin" value="1" min="0" max="3"/>
       </label>
-      <br>
       <label>
-        <input type="checkbox" id="mode-same-letter" checked /> Alle raten nacheinander zum selben Buchstaben
+        <input type="checkbox" id="same-letter" checked /> Alle raten für den selben Buchstaben
       </label>
-      <br>
       <button id="start-btn">Spiel starten</button>
-      <div id="settings-warning" class="warn"></div>
-    </div>
+      <div id="setup-warning" class="warning"></div>
+      <div id="setup-loading" class="loading"></div>
+    </section>
 
-    <!-- Spiel -->
-    <div id="game-screen" style="display:none">
-      <h2><span id="player-turn"></span> ist am Zug</h2>
-      <div class="big">
-        Buchstabe: <span id="current-letter"></span>
+    <section id="game-screen" style="display:none;">
+      <div id="alphabet-bar"></div>
+      <div class="status">
+        <span id="status-current-letter"></span>
+        <span id="status-current-player"></span>
+        <span id="timer"></span>
       </div>
-      <input id="guess-input" autocomplete="off" placeholder="Name des Spielers" />
-      <button id="submit-btn">Antwort prüfen</button>
-      <button id="pass-btn" class="secondary">Passen</button>
-      <div id="alphabet-row"></div>
+      <input type="text" id="player-input" placeholder="Spielername eingeben" autocomplete="off"/>
+      <button id="guess-btn">Abschicken</button>
+      <button id="pass-btn">Passen</button>
+      <div id="guessed-list"></div>
       <div id="scoreboard"></div>
-      <div id="last-guess"></div>
-    </div>
+      <button id="restart-btn" style="margin-top:1.5rem;">Neues Spiel</button>
+    </section>
 
-    <!-- Ende -->
-    <div id="end-screen" style="display:none">
-      <h2>Spiel beendet!</h2>
-      <div id="winner"></div>
-      <button id="restart-btn">Neues Spiel</button>
-    </div>
-  </main>
-
+  </div>
   <script src="script.js"></script>
 </body>
 </html>
